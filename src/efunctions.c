@@ -407,6 +407,7 @@ mat* collision_kernel(vec* r, const int type, const double dt)
 
         for (i = 0; i < N; ++i) for(j = 0; j < i; ++j)
         {
+            iq = 0; ir = 0;
             for (k = 1; k < 15; ++k)
             {
                 if (r->data[j] <= r0[k] && r->data[j] >= r0[k-1])
@@ -494,6 +495,8 @@ vec* collision(vec* bin, vec* r, int* ima, mat* c, mat* ck)
     const double gmin = 1e-60;
     double xi, xj, x0;
     double gsi, gsj, gsk, gk;
+
+    i0 = 0; il = N - 1;
 
     // Needed For Conversion
     mat* bedge = edges(r);

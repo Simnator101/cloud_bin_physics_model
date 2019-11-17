@@ -1,9 +1,26 @@
 #include "../include/extio.h"
 
+long str_find_char(const char* str, const char delim, int mode)
+{
+    assert(mode == STR_FIND_FIRST || mode == STR_FIND_LAST);
+    long fp = -1;
+    unsigned long i;
+    for (i = 0; i < strlen(str); ++i)
+        if (str[i] == delim) 
+        {
+            if (mode == STR_FIND_LAST)
+                fp = (long)i;
+            else
+                fp = (fp < 0) ? (long)i : fp;
+        }
+
+    return fp;
+}
+
 char* str_trim(char* str, int left, int right)
 {
     unsigned long li = 0;
-    unsigned long ri = strlen(str) - 1;
+    unsigned long ri = strlen(str);
     if (left) while (isspace(str[li])) ++li;
     if (right) while (ri > 0 && isspace(str[ri])) --ri;
 

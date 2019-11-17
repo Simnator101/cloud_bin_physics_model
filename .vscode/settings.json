@@ -10,6 +10,7 @@
         "mathfuncs.h": "c",
         "extio.h": "c",
         "cmath": "c",
-        "complex": "c"
+        "complex": "c",
+        "sstream": "c"
     }
 }

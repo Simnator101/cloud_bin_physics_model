@@ -51,8 +51,6 @@ netCDF_obj init_netcdf_output(const char* file_nm, vec* z, vec* x, vec* r)
         ERR(ncerr, obj);
     if ((ncret = nc_def_var(obj.ncid, "q", NC_FLOAT, 3, obj.dimids, &obj.q_field)))
         ERR(ncerr, obj);
-    if ((ncret = nc_def_var(obj.ncid, "l", NC_FLOAT, 3, obj.dimids, &obj.l_field)))
-        ERR(ncerr, obj);
 
     if ((ncret = nc_def_var(obj.ncid, "ld", NC_FLOAT, 4, obj.dimids, &obj.bins_field)))
         ERR(ncerr, obj);
@@ -62,8 +60,25 @@ netCDF_obj init_netcdf_output(const char* file_nm, vec* z, vec* x, vec* r)
 
 
     // Optional Fields
-    obj.rhow_field = 0;
-    if (MODEL_SETTINGS.nc_additional_output & NC_OUTPUT_MOMENTUM)
+    if (MODEL_SETTINGS.nc_flags & NC_OUTPUT_CLOUD_LIQUID)
+    {
+        if ((ncret = nc_def_var(obj.ncid, "l", NC_FLOAT, 3, obj.dimids, &obj.l_field)))
+            ERR(ncerr, obj);
+        if ((ncret = nc_put_att_text(obj.ncid, obj.l_field, "units", 5, "kg/kg")))
+            ERR(ncerr, obj);
+        if ((ncret = nc_put_att_text(obj.ncid, obj.l_field, "standard_name", 25, "water_liquid_mixing_ratio")))
+            ERR(ncerr, obj);
+    }
+    if (MODEL_SETTINGS.nc_flags & NC_OUTPUT_MOMENTUM_U)
+    {
+        if ((ncret = nc_def_var(obj.ncid, "rhou", NC_FLOAT, 3, obj.dimids, &obj.rhou_field)))
+            ERR(ncerr, obj);           
+        if ((ncret = nc_put_att_text(obj.ncid, obj.rhou_field, "units", 9, "kg/m**2/s")))
+            ERR(ncerr, obj);
+        if ((ncret = nc_put_att_text(obj.ncid, obj.rhou_field, "standard_name", 15, "momentum_flux_u")))
+            ERR(ncerr, obj);
+    }
+    if (MODEL_SETTINGS.nc_flags & NC_OUTPUT_MOMENTUM_W)
     {
         if ((ncret = nc_def_var(obj.ncid, "rhow", NC_FLOAT, 3, obj.dimids, &obj.rhow_field)))
             ERR(ncerr, obj);           
@@ -85,10 +100,6 @@ netCDF_obj init_netcdf_output(const char* file_nm, vec* z, vec* x, vec* r)
     if ((ncret = nc_put_att_text(obj.ncid, obj.q_field, "units", 5, "kg/kg")))
         ERR(ncerr, obj);
     if ((ncret = nc_put_att_text(obj.ncid, obj.q_field, "standard_name", 19, "vapour_mixing_ratio")))
-        ERR(ncerr, obj);
-    if ((ncret = nc_put_att_text(obj.ncid, obj.l_field, "units", 5, "kg/kg")))
-        ERR(ncerr, obj);
-    if ((ncret = nc_put_att_text(obj.ncid, obj.l_field, "standard_name", 25, "water_liquid_mixing_ratio")))
         ERR(ncerr, obj);
     if ((ncret = nc_put_att_text(obj.ncid, obj.bins_field, "units", 6, "1/m**4")))
         ERR(ncerr, obj);

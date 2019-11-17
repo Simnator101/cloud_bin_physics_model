@@ -16,8 +16,8 @@ int main(int argc, char **argv)
     //test_advection();
     //test_advection_2d();
     //test_droplet_advc();
-    test_droplet_coal();
-    return 0;
+    //test_droplet_coal();
+    //return 0;
 
     // Indices
     unsigned long i, j, k, n, nf;
@@ -53,6 +53,9 @@ int main(int argc, char **argv)
     clck = clock();
 
     // TODO Load in options... 
+    assert(argc > 1);
+    assert(read_job_settings(argv[1]) == 0);
+    fprint_opts(stdout, MODEL_SETTINGS);
 
     // Initialise Spatial Scales
     x = range(MODEL_SETTINGS.xMin,
@@ -162,6 +165,7 @@ int main(int argc, char **argv)
             write_netcdf_field(out, out.Th_field, nc_i, Th);
             write_netcdf_field(out, out.q_field, nc_i, q);
             write_netcdf_field(out, out.l_field, nc_i, l);
+            write_netcdf_field(out, out.rhou_field, nc_i, rhou);
             write_netcdf_field(out, out.rhow_field, nc_i, rhow);
             write_netcdf_binvar(out, out.bins_field, nc_i, bins);
             ++nc_i;

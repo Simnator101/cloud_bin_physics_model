@@ -3,7 +3,7 @@ SDIR = ./src
 BDIR = ./build
 
 CC = gcc
-CFLAGS = -g -Wall -std=c11
+CFLAGS = -O3 -Wall -std=c11
 LIBS = -lm -lnetcdf
 
 SRCS := $(wildcard $(SDIR)/*.c)

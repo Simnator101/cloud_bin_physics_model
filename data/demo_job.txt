@@ -1,0 +1,21 @@
+# Timesettings
+[TIMESTEPS,36]
+[DT,0.5]
+[FT,10]
+
+# Domain Settings
+[XDIM,0.0,9e3,50.0]
+[ZDIM,0.0,3e3,50.0]
+
+# Bin Settings
+[BINOPTS,69,linexp,0.25,0.055]
+
+# CCN Settings
+[CCN,1.2e8,0.4]
+
+# Background Profile
+[PROFILE,./data/shallow_cumulus_profile.txt,P,T,Q]
+
+# Output Settings
+[NCOUT,./out/shallow_cumulus.nc,8]
+#[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]

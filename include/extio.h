@@ -22,10 +22,14 @@
 #include "./matrix.h"
 #include "./pgrid.h"
 
+#define OPTIONS_PRINT_UNKNOWN
+
 #define LINEXP_RGRID 0
 #define LINMASS_RGRID 1
 
-#define NC_OUTPUT_MOMENTUM 0x01U
+#define NC_OUTPUT_MOMENTUM_U     0x01U
+#define NC_OUTPUT_MOMENTUM_W     0x02U
+#define NC_OUTPUT_CLOUD_LIQUID   0x04U
 
 #ifndef TRUE
 #define TRUE 1
@@ -35,11 +39,15 @@
 #define FALSE 0
 #endif
 
+#define STR_FIND_FIRST 1
+#define STR_FIND_LAST  2
+
 _CCODE_START
 /*General Tools*/
 long file_size(FILE* pf);
 
 /*Text Reader Tools*/ 
+long str_find_char(const char* str, const char delim, int mode);
 char* str_trim(char* str, int left, int right);
 int str_eval_func(char* str, int(*func)(int));
 
@@ -86,7 +94,7 @@ typedef struct __type_model_settings
     // NetCDF Output
     const char* nc_output_nm;
     unsigned short nc_write_freq;
-    unsigned long nc_additional_output;
+    unsigned long nc_flags;
 
     // Internal String Storage
     strbuffer __str_int;
@@ -97,6 +105,8 @@ extern __model_settings MODEL_SETTINGS;
 
 char* model_settings_add_str(char* str);
 #define free_model_settings() free_strbuffer(MODEL_SETTINGS.__str_int)
+int read_job_settings(const char *file_name);
+void fprint_opts(FILE* pf, __model_settings sets);
 
 /*NetCDF output*/
 typedef struct __netcdf_out
