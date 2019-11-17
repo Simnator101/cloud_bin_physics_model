@@ -1,2 +1,2 @@
-# cloud_bin_physics_model
-Model with kinematic framework to simulate warm-rain cloud behaviour
+# Cloud Bin Physics Model
+Model with kinematic framework to simulate warm-rain cloud behaviour.
