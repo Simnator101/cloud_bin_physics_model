@@ -1,0 +1,6 @@
+/out/*
+/build/*
+*.nc
+*.pdf
+*.mp4
+/SCModel

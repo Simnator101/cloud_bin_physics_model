@@ -1,0 +1,455 @@
+#include "../include/mathfuncs.h"
+
+#ifndef SGN
+#define SGN(x) ((double)x / fabs((double)x))
+#endif
+
+vec *courant_bott(const vec* v, const vec* x, const double dt)
+{
+    unsigned long nc = LEN(v) + 2;
+    unsigned long i;
+    vec* c = zero_vec(nc);
+    c->data[0] = v->data[0] * dt / (x->data[1] - x->data[0]);
+    for (i = 0; i < LEN(v) - 1; ++i)
+        c->data[i+1] = 0.5 * (v->data[i] + v->data[i+1]) * dt / (x->data[i+1] - x->data[i]);
+    c->data[i+1] = v->data[i] * dt / (x->data[i] - x->data[i-1]);
+    c->data[i+2] = c->data[i+1];
+
+    return c;
+}
+
+vec* courant_1d(const vec* v, const vec* x, const double dt)
+{
+    unsigned long nc = LEN(v) + 1;
+    unsigned long i;
+    vec* c = zero_vec(nc);
+    c->data[0] = v->data[0] * dt / (x->data[1] - x->data[0]);
+    for (i = 0; i < LEN(v) - 1; ++i)
+        c->data[i+1] = 0.5 * (v->data[i] + v->data[i+1]) * dt / (x->data[i+1] - x->data[i]);
+    c->data[i+1] = v->data[i] * dt / (x->data[i] - x->data[i-1]);
+
+    return c;
+}
+
+/*
+mat* courant_2d(mat* v, const vec* x, const int axis, const double dt)
+{
+    assert(axis == 0 || axis == 1);
+    unsigned long i;
+    // Y Direction
+    if (axis == 0)
+    {
+        mat* c = allocate_matNxM(v->N + 1, v->M);
+        for (i = 0; i < COLS(v); ++i)
+        {
+            vec* vslice = slice_mat_col(v, i);
+            vec* cslice = courant_1d(vslice, x, dt);
+            set_mat_col(c, cslice, i);
+
+            free_vec(cslice);
+            free_vec(vslice);
+        }
+        return c;
+    }
+    
+    // X Direction
+    mat* c = allocate_matNxM(v->N, v->M + 1);
+    for (i = 0; i < ROWS(v); ++i)
+    {
+        vec* vslice = slice_mat_row(v, i);
+        vec* cslice = courant_1d(vslice, x, dt);
+        set_mat_row(c, cslice, i);
+
+        free_vec(vslice);
+        free_vec(cslice);
+    }
+
+    return c;
+}
+*/
+
+vec* adv2p(vec* y, vec* c, vec* rho, int boundary)
+{
+    assert(LEN(y) + 2 == LEN(c));
+
+    if (boundary & BOUNDARY_CONTINUOUS)
+    {
+        push_front(y, y->data[0]);
+        push_front(rho, rho->data[0]);
+        
+        push_back(y, y->data[LEN(y) - 1]);
+        push_back(rho, rho->data[LEN(rho) - 1]);
+    }
+    else if (boundary & BOUNDARY_CYCLIC)
+    {
+        push_front(y,  y->data[LEN(y) - 1]);
+        push_front(rho, rho->data[LEN(rho) - 1]);
+
+        push_back(y, y->data[1]);
+        push_back(rho, rho->data[1]);
+    }   
+    else
+    {
+        push_front(y, 0.0);
+        push_front(rho, 1.0);
+
+        push_back(y, 0.0);
+        push_back(rho, 1.0);
+    }
+    
+    
+    
+
+    unsigned long i;
+    unsigned long N = LEN(y);
+    double cr, cl;
+    double a0, a1, a2;
+    double x1, x2;
+    vec* fp, *fm, *w;
+    fp = zero_vec(LEN(y));
+    fm = zero_vec(LEN(y));
+    w = one_vec(c->N);
+
+    
+
+    cr = MAX(c->data[0], 0.0);
+    fp->data[0] = MIN(y->data[0], cr * (y->data[0] + (1. - cr) * (y->data[1] - y->data[0]) * 0.5));
+    w->data[0] = 1.0;
+
+    for (i = 1; i < N - 1; ++i)
+    {
+        a0 = (26. * y->data[i] - y->data[i+1] - y->data[i-1]) / 24.;
+        a1 = (y->data[i+1] - y->data[i-1]) / 16.;
+        a2 = (y->data[i+1] + y->data[i-1] - 2. * y->data[i]) / 48.;
+        
+        cl = -MIN(0., c->data[i-1]);
+        x1 = 1. - 2. * cl;
+        x2 = x1 * x1;
+        fm->data[i-1] = MAX(0.0, a0 * cl - a1 * (1. - x2) + a2 * (1. - x1 * x2));
+
+        cr = MAX(0.0, c->data[i]);
+        x1 = 1. - 2. * cr;
+        x2 = x1 * x1;
+        fp->data[i] = MAX(0., a0 * cr + a1 * (1. - x2) + a2 * (1. - x1 * x2));
+
+        w->data[i] = y->data[i] / MAX(fm->data[i-1] + fp->data[i] + 1e-15, a0 + 2. * a2);
+    }
+
+    cl = -MIN(0., c->data[N - 2]);
+    fm->data[N - 2] = MIN(y->data[N-1], cl * (y->data[N-1] - (1. - cl) * (y->data[N-1] - y->data[N-2]) * 0.5));
+    w->data[N-1] = 1.0;
+
+    for (i = 1; i < N-1; ++i)
+    {
+        double flx = -(fm->data[i-1] + fp->data[i]) * w->data[i];
+        flx += fm->data[i] * w->data[i+1] + fp->data[i-1] * w->data[i-1];
+
+        y->data[i] = y->data[i] + flx / rho->data[i];
+    }
+    
+
+    free_vec(fp); free_vec(fm); free_vec(w);
+    
+    if ((boundary & BOUNDARY_KEEP_OUT_FLUXES) == 0)
+    {
+        pop_back(y); pop_front(y);
+    }
+    pop_back(rho); pop_front(rho);
+    return y;
+}
+
+static int mpbmode = BOUNDARY_NILL;
+static double mget(mat* m, long i, long j)
+{
+    int yt, xt;
+    if (i < 0) yt = -1;
+    else if (i >= ROWS(m)) yt = 1;
+    else yt = 0;
+
+    if (j < 0) xt = -1;
+    else if (j >= COLS(m)) xt = 1;
+    else xt = 0;
+
+    //if (yt != 0 && xt != 0) return 0.0;
+    if (xt != 0 || yt != 0)
+    {
+        if (mpbmode == BOUNDARY_NILL)
+        {
+            return 0.0;
+        }
+        else if (mpbmode == BOUNDARY_CONTINUOUS)
+        {
+            i = MAX(0, MIN(i, ROWS(m) - 1));
+            j = MAX(0, MIN(j, COLS(m) - 1));
+        }
+        else if (mpbmode == BOUNDARY_CYCLIC)
+        {
+            i = i % ROWS(m);
+            j = j % COLS(m);
+        }
+    }
+
+    return m->data[i * COLS(m) + j];
+}
+
+static double flux(double phi_L, double phi_R, double C)
+{
+    return ((C + fabs(C)) * phi_L + (C - fabs(C)) * phi_R) * 0.5;
+}
+
+static double mp_A(mat* phi, int i, int j, int axis)
+{
+    assert(axis == 0 || axis == 1);
+    double nom, den;
+    if (axis == 0)
+    {
+        nom = mget(phi, i + 1, j) - mget(phi, i, j);
+        den = mget(phi, i + 1, j) + mget(phi, i, j);
+    }
+    else
+    {
+        nom = mget(phi, i, j + 1) - mget(phi, i, j);
+        den = mget(phi, i, j + 1) + mget(phi, i, j);
+    }
+    
+
+    return nom / (den + 1e-20);
+}
+
+static double mp_B(mat* phi, int i, int j, int axis)
+{
+    assert(axis == 0 || axis == 1);
+    double nom, den, half;
+    if (axis == 0)
+    {
+        nom = mget(phi, i+1, j+1) + mget(phi, i, j+1);
+        half = mget(phi, i+1, j-1) + mget(phi, i, j-1);
+        den = nom + half;
+        nom = nom - half;
+    }
+    else
+    {
+        nom = mget(phi, i+1, j+1) + mget(phi, i+1, j);
+        half = mget(phi, i-1, j+1) + mget(phi, i-1, j);
+        den = nom + half;
+        nom = nom - half;
+    }
+    
+
+    return nom / (den + 1e-20) / 2.0;
+}
+
+static double cav(mat *c, int i, int j, int axis)
+{
+    assert(axis == 0 || axis == 1);
+    double sumv;
+    if (axis == 0)
+        sumv = mget(c, i+1, j+1) + mget(c, i+1, j) +\
+               mget(c, i  , j+1) + mget(c, i, j);
+    else
+        sumv = mget(c, i+1, j+1) + mget(c, i, j+1) +\
+               mget(c, i+1, j  ) + mget(c, i, j);
+    
+    return 0.25 * sumv;
+}
+
+static double pmax(mat* phi, mat* phi_max, int i, int j)
+{
+    return va_max(6, mget(phi_max,i,j),
+                     mget(phi,i-1,j),
+     mget(phi,i,j-1),mget(phi,i,j),mget(phi,i,j+1),
+                     mget(phi,i+1,j) );
+}
+
+static double pmin(mat* phi, mat* phi_min, int i, int j)
+{
+    return va_min(6, mget(phi_min,i,j),
+                     mget(phi,i-1,j),
+     mget(phi,i,j-1),mget(phi,i,j),mget(phi,i,j+1),
+                     mget(phi,i+1,j) );
+}
+
+static double beta_up_nominator(mat* phi, mat* phi_max, int i, int j)
+{
+    return pmax(phi, phi_max, i, j) - mget(phi, i, j);
+}
+
+static double beta_dn_nominator(mat* phi, mat* phi_min, int i, int j)
+{
+    return mget(phi, i, j) - pmin(phi, phi_min, i, j);
+}
+
+mat* mpadvec(mat* phi, mat* cu, mat* cv, const mat* G, int order, int boundary)
+{
+    assert(COLS(cu) - 1 == COLS(phi));
+    assert(ROWS(cv) - 1 == ROWS(phi));
+    assert(order > 0);
+    if (G != NULL) assert(LEN_MAT(G) == LEN_MAT(phi));
+    if (boundary & BOUNDARY_NILL) mpbmode = BOUNDARY_NILL;
+    else if (boundary & BOUNDARY_CYCLIC) mpbmode = BOUNDARY_CYCLIC;
+    else if (boundary & BOUNDARY_CONTINUOUS) mpbmode = BOUNDARY_CONTINUOUS;
+
+    // Allocate Temp Objects
+    mat* ccu = copy_mat(cu);
+    mat* ccv = copy_mat(cv);
+    mat* phn = copy_mat(phi);
+
+    mat* phi_max = allocate_matNxM(ROWS(phi), COLS(phi));
+    mat* phi_min = allocate_matNxM(ROWS(phi), COLS(phi));
+    mat* bup = allocate_matNxM(ROWS(phi), COLS(phi));
+    mat* bdn = allocate_matNxM(ROWS(phi), COLS(phi));
+
+    long o, i, j;
+    double cfl[4];
+    register double tmp[2][3];
+
+
+    for (i = 0; i < ROWS(phi); ++i) for (j= 0; j < COLS(phi); ++j)
+    {
+        set_mat_ind(phi_max, i, j, va_max(5, mget(phi, i+1, j),
+                          mget(phi, i, j-1), mget(phi, i, j), mget(phi, i, j+1),
+                                             mget(phi, i-1, j) ));
+        set_mat_ind(phi_min, i, j, va_min(5, mget(phi, i+1, j),
+                          mget(phi, i, j-1), mget(phi, i, j), mget(phi, i, j+1),
+                                             mget(phi, i-1, j) ));
+    }
+
+    for (o = 0; o < order; ++o)
+    {
+        mat* tcv = zero_mat(ccv->N, ccv->M); 
+        mat* tcu = zero_mat(ccu->N, ccu->M);
+
+        if ((o == 0) || !(boundary & NON_OSCILLATORY)) goto skip_beta;
+        // Calculate beta's
+        for (i = 0; i < ROWS(phi); ++i) for (j = 0; j < COLS(phi); ++j)
+        {
+            // First Calculate the antidiffusive fluxes
+            // Y dir
+            double inflw = (MAX(0.0, mget(ccv, i, j) * mget(phi, i-1, j)) -\
+                            MIN(0.0, mget(ccv, i+1, j) * mget(phi, i+1, j))) +\
+                           (MAX(0.0, mget(ccu, i, j) * mget(phi,i,j-1)) -\
+                            MIN(0.0, mget(ccu, i, j+1) * mget(phi,i,j+1)));
+            double otflw = (MAX(0.0, mget(ccv, i+1,j) * mget(phi,i,j)) - \
+                            MIN(0.0, mget(ccv, i, j) * mget(phi,i,j))) +\
+                            (MAX(0.0, mget(ccu, i, j+1) * mget(phi,i,j)) -\
+                            MIN(0.0, mget(ccu, i,j) * mget(phi,i,j)));
+
+
+            double bpos = beta_up_nominator(phi, phi_max, i, j) * ((G != NULL) ? mget((mat*)G, i, j) : 1.0);
+            double bneg = beta_dn_nominator(phi, phi_min, i, j) * ((G != NULL) ? mget((mat*)G, i, j) : 1.0);
+
+            set_mat_ind(bup, i, j, bpos / (inflw + 1e-15));
+            set_mat_ind(bdn, i, j, bneg / (otflw + 1e-15));
+
+            //if((bpos / (inflw + 1e-15)) < 0.0 || (bneg / (otflw + 1e-15)) < 0.0)
+            //    printf("ERR %f/%f %f/%f\n", bpos, inflw, bneg, otflw);
+        }
+       // printf("Max up. %.1e, min up. %.1e\n", max_mat(bup), min_mat(bup));
+        for (i = 0; i < ROWS(phi); ++i) for (j = 0; j < COLS(phi); ++j)
+        {
+            // v correction
+            if (mget(ccv, i+1, j) > 0.0)
+            {
+                double csc = (mget(phi,i,j) > 0.0 ) ? va_min(3, 1.0, mget(bdn,i,j), mget(bup,i+1,j)) :\
+                                                      va_min(3, 1.0, mget(bup,i,j), mget(bdn,i+1,j));            
+                //if (csc > 1.0 || csc < 0.0) printf("%.1e\n", csc);
+                tcv->data[(i+1)*COLS(tcv)+j] = ccv->data[(i+1)*COLS(ccv)+j] * csc;
+            }
+            else
+            {
+                double csc = (mget(phi,i+1,j) > 0.0) ? va_min(3, 1.0, mget(bup,i,j), mget(bdn,i+1,j)) :\
+                                                     va_min(3, 1.0, mget(bdn,i,j), mget(bup,i+1,j));
+                //if (csc > 1.0 || csc < 0.0) printf("%.1e\n", csc);
+                tcv->data[(i+1)*COLS(tcv)+j] = ccv->data[(i+1)*COLS(ccv)+j] * csc;
+            }
+
+            // u correction
+            if (mget(ccu, i, j+1) > 0.0)
+            {
+                double csc = (mget(phi,i,j) > 0.0 ) ? va_min(3, 1.0, mget(bdn,i,j), mget(bup,i,j+1)) :\
+                                                      va_min(3, 1.0, mget(bup,i,j), mget(bdn,i,j+1));            
+                //if (csc > 1.0 || csc < 0.0) printf("%.1e\n", csc);
+                tcu->data[i*COLS(tcu)+j+1] = ccu->data[i*COLS(ccu)+j+1] * csc;
+            }
+            else
+            {
+                double csc = (mget(phi,i,j+1) > 0.0) ? va_min(3, 1.0, mget(bup,i,j), mget(bdn,i,j+1)) :\
+                                                     va_min(3, 1.0, mget(bdn,i,j), mget(bup,i,j+1));
+                //if (csc > 1.0 || csc < 0.0) printf("%.1e\n", csc);
+                tcu->data[i*COLS(tcu)+j+1] = ccu->data[i*COLS(ccu)+j+1] * csc;
+            }
+            
+        }
+        //printf("tcu max %.3f min %.3f\n", max_mat(tcu), min_mat(tcu));
+        //printf("ccu max %.3f min %.3f\n", max_mat(ccu), min_mat(ccu));
+
+        //memcpy(ccv->data, tcv->data, sizeof(double) * LEN_MAT(ccv));
+        //memcpy(ccu->data, tcu->data, sizeof(double) * LEN_MAT(ccu));
+        
+        skip_beta:
+        // Calculate Donor scheme
+        for (i = 0; i < ROWS(phi); ++i) for (j = 0; j < COLS(phi); ++j)
+        {           
+            // Y dir
+            cfl[0] = flux(mget(phi, i, j), mget(phi, i + 1, j), mget(ccv, i + 1, j));
+            cfl[1] = flux(mget(phi, i - 1, j), mget(phi, i, j), mget(ccv, i    , j));
+            // X dir
+            cfl[2] = flux(mget(phi, i, j), mget(phi, i, j + 1), mget(ccu, i, j + 1));
+            cfl[3] = flux(mget(phi, i, j - 1), mget(phi, i, j), mget(ccu, i, j    ));
+            
+
+            // Update
+            double fsum = (cfl[0] - cfl[1]) + (cfl[2] - cfl[3]);
+            double Gs = (G != NULL) ? G->data[i * COLS(G) + j] : 1.0;
+            phn->data[i * COLS(phn) + j] = phn->data[i * COLS(phn) + j] - fsum / Gs;
+
+            
+        }
+
+
+        // Update 
+        memcpy(phi->data, phn->data, LEN_MAT(phi) * sizeof(double));
+
+        // Calculate diffusive velocities
+        // Break loop if o + 1 == order
+        //if (o + 1 >= order) goto skip_oscil;
+
+        // Do the Rest
+        for (i = -1; i < (long)ROWS(phi); ++i) for (j = -1; j < (long)COLS(phi); ++j)
+        {
+            // Y dir
+            if (j >= 0)
+            {
+                tmp[0][0] = mp_A(phi, i, j, 0);
+                tmp[0][1] = mp_B(phi, i, j, 0);
+                tmp[0][2] = fabs(mget(ccv, i+1, j)) * (1. - fabs(mget(ccv, i+1, j)));
+                double ry = tmp[0][2] * tmp[0][0] - cav(ccv, i, j, 0) * tmp[0][1];
+                tcv->data[(i+1) * COLS(tcv) + j] = ry;
+            }
+            
+            // X dir
+            if (i >= 0)
+            {
+                tmp[1][0] = mp_A(phi, i, j, 1);
+                tmp[1][1] = mp_B(phi, i, j, 1);
+                tmp[1][2] = fabs(mget(ccu, i, j+1)) * (1. - fabs(mget(ccu, i, j+1)));
+                double rx = tmp[1][2] * tmp[1][0] - cav(ccu, i, j, 1) * tmp[1][1];
+                tcu->data[i * COLS(tcu) + j + 1] = rx;
+            }            
+            
+        }
+
+        memcpy(ccv->data, tcv->data, sizeof(double) * LEN_MAT(ccv));
+        memcpy(ccu->data, tcu->data, sizeof(double) * LEN_MAT(ccu));
+        free_mat(tcv); free_mat(tcu);
+    }
+
+    free_mat(ccu);
+    free_mat(ccv);
+    free_mat(phn);
+    free_mat(phi_max);
+    free_mat(phi_min);
+    free_mat(bup); 
+    free_mat(bdn);
+    return phi;
+}

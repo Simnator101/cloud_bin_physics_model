@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "chrono": "c",
+        "random": "c",
+        "limits": "c",
+        "algorithm": "c",
+        "array": "cpp",
+        "string": "cpp",
+        "string_view": "cpp",
+        "mathfuncs.h": "c",
+        "extio.h": "c",
+        "cmath": "c",
+        "complex": "c"
+    }
+}
