@@ -17,11 +17,12 @@ int main(int argc, char **argv)
     //test_advection_2d();
     //test_droplet_advc();
     //test_droplet_coal();
-    test_eddy_mixing();
-    return 0;
+    //test_eddy_mixing();
+    //return 0;
 
     // Indices
-    unsigned long i, j, k, n, nf;
+    long long n, nf;
+    register unsigned long i, j, k;
     unsigned long ind;
     unsigned long nc_i;
     unsigned long NZ, NX, NR;
@@ -33,7 +34,7 @@ int main(int argc, char **argv)
     // Data Fields
     vec* x, *z, *r, *dr;
     mat* p0;
-    mat* T, *Th, *Th_conv;
+    mat* T, *Th, *Th_conv, *T_prev;
     mat* q, *l;
     mat* strmfnc, *rhow, *rhou, *rho, *rhovT_d;
     mat* Smax;
@@ -53,17 +54,18 @@ int main(int argc, char **argv)
     clock_t clck;
     clck = clock();
 
-    // TODO Load in options... 
+    // Load in options... 
     assert(argc > 1);
     assert(read_job_settings(argv[1]) == 0);
     fprint_opts(stdout, MODEL_SETTINGS);
 
+
     // Initialise Spatial Scales
     x = range(MODEL_SETTINGS.xMin,
-              MODEL_SETTINGS.xMax,
+              MODEL_SETTINGS.xMax + MODEL_SETTINGS.dx,
               MODEL_SETTINGS.dx);
     z = range(MODEL_SETTINGS.zMin,
-              MODEL_SETTINGS.zMax,
+              MODEL_SETTINGS.zMax + MODEL_SETTINGS.dz,
               MODEL_SETTINGS.dz);
     switch (MODEL_SETTINGS.bgrid)
     {
@@ -109,7 +111,7 @@ int main(int argc, char **argv)
             set_mat_ind(q, i, j, _qv);
         }
     }
-    //fprint_vec(stdout, snd.pe); fprint_vec(stdout, snd.ze);
+    //mafprint_vec(stdout, snd.pe); fprint_vec(stdout, snd.ze);
     MODEL_SETTINGS.p0 = snd.pe->data[0];
     MODEL_SETTINGS.z0 = snd.ze->data[0];
     Th0_bot = slice_mat_row(Th, 0); 
@@ -141,6 +143,9 @@ int main(int argc, char **argv)
     courant_coal(r, ccoll, ima);
     cck = collision_kernel(r, KERNEL_LONG, MODEL_SETTINGS.dt);
 
+    // Keep previous T
+    T_prev = copy_mat(T);
+
     // Create Output file
     netCDF_obj out = init_netcdf_output(MODEL_SETTINGS.nc_output_nm, z, x, r);
     assert(out.state_var == 0);
@@ -153,7 +158,18 @@ int main(int argc, char **argv)
         fdt = MODEL_SETTINGS.dt / (double)MODEL_SETTINGS.fNT;
 
         // Update Kinematic Framework
-        strmf_shallow_cumulus(x, z, t, strmfnc);
+        switch (MODEL_SETTINGS.strm_type)
+        {
+        case STRM_SHALLOW_CUMULUS:
+            strmf_shallow_cumulus(x, z, t, strmfnc);
+            break;
+        case STRM_SYM_EDDY:
+            strmf_stratocumulus_sym(x, z, t, strmfnc);
+            break;
+        case STRM_ASYM_EDDY:
+            strmf_stratocumulus_asym(x, z, t, strmfnc);
+            break;
+        }        
         free_mat(rhow); free_mat(rhou);
         rhow = gradient_mat(strmfnc, x, 1);
         rhou = gradient_mat(strmfnc, z, 0); scl_mat(rhou, -1.0);
@@ -174,20 +190,18 @@ int main(int argc, char **argv)
 
 
         // Fluxes due to SHF and LHF
-        /*
-        if (MODEL_SETTINGS.use_fluxes)
+        if (MODEL_SETTINGS.LHF != 0.0)
         {
             SHF_T_flux(T, rho, max_vec(z), MODEL_SETTINGS.dt);
             for(i = 0; i < LEN_MAT(T); ++i) Th->data[i] = Th_conv->data[i] * T->data[i];
             LHF_q_flux(q, rho, max_vec(z), MODEL_SETTINGS.dt);
         }
-        */
 
         // Advection of Temperature and Humidity
         arakawa_2d* Th_grid = make_arakawa_2d(Th, x, z, rhou, rhow, rho, MODEL_SETTINGS.dt);
         arakawa_2d* q_grid  = make_arakawa_2d(q, x, z, rhou, rhow, rho, MODEL_SETTINGS.dt);
-        mpadvec2d(Th_grid, 2, MPDATA_CONTIN_X | MPDATA_NILL_Y | MPDATA_NONOSCIL);
-        mpadvec2d(q_grid, 2, MPDATA_CONTIN_X | MPDATA_NILL_Y | MPDATA_NONOSCIL);
+        mpadvec2d(Th_grid, 2, MODEL_SETTINGS.zx_border_type);
+        mpadvec2d(q_grid, 2, MODEL_SETTINGS.zx_border_type);
         memcpy_arakawa_2d(Th, Th_grid);
         memcpy_arakawa_2d(q, q_grid);
         free_arakawa_2d(Th_grid, 0); free_arakawa_2d(q_grid, 0); 
@@ -203,7 +217,7 @@ int main(int argc, char **argv)
                 wb->data[i*NX+j] = rhow->data[i*NX+j] - rhovT_d->data[i*NR+k];
             
             arakawa_2d* bin_grid = make_arakawa_2d(slc_b, x, z, rhou, wb, rho, MODEL_SETTINGS.dt);
-            mpadvec2d(bin_grid, 2, MPDATA_CONTIN_X | MPDATA_CONTIN_Y | MPDATA_NONOSCIL);
+            mpadvec2d(bin_grid, 2, MODEL_SETTINGS.zx_border_type);
             memcpy_arakawa_2d(slc_b, bin_grid);
             free_arakawa_2d(bin_grid, 0);
             set_pgrid_x(bins, slc_b, k);
@@ -238,9 +252,37 @@ int main(int argc, char **argv)
 
         // Fix Edges
         set_mat_row(Th, Th0_bot, 0); set_mat_row(q, q0_bot, 0);
+        set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_top, NZ - 1);
         //set_mat_col(Th, Th0, NX-1); set_mat_col(q, q0, NX-1);
         //for (j = 0; j < NX; ++j) for (k = 0; k < LEN(r); ++k)
         //    bins->data[j * bins->NX + k] = 0.0;
+        if (MODEL_SETTINGS.zx_border_type & MPDATA_CYCLIC_X)
+        {
+            vec* Tl = slice_mat_col(Th, 0);
+            vec* ql = slice_mat_col(q, 0);
+
+            vec* Tr = slice_mat_col(Th, NX -1);
+            vec* qr = slice_mat_col(q, NX -1);
+
+            mat* bl = slice_pgrid_y(bins, 0);
+            mat* br = slice_pgrid_y(bins, NX - 1);
+            add_mat(bl, 1, br);
+            scl_mat(bl, 0.5);
+
+            for (i = 0; i < NZ; ++i)
+            {
+                Tl->data[i] = (Tl->data[i] + Tr->data[i]) * 0.5;
+                ql->data[i] = (ql->data[i] + qr->data[i]) * 0.5;
+            }
+
+            set_mat_col(Th, Tl, 0); set_mat_col(Th, Tl, NX - 1);
+            set_mat_col(q, ql, 0); set_mat_col(q, ql, NX - 1);
+            set_pgrid_y(bins, bl, 0); set_pgrid_y(bins, bl, NX - 1);
+
+            free(Tl); free(Tr);
+            free(ql); free(qr);
+            free_mat(bl); free_mat(br);
+        }
 
         // Solve Temperature Equation from pot. T.
         memcpy(T->data, Th->data, sizeof(double) * LEN_MAT(T));
@@ -315,12 +357,26 @@ int main(int argc, char **argv)
                 free_vec(bin);
             }
         }
-        //
-        // printf("\nSmin %f Smax %f\n", SSmin, SSmax);
+
+        // If mode is quasi-equilibrium we break if balance is reached
+        // We Ignore this for now
+        /*
+        if (MODEL_SETTINGS.NT == INT64_MAX)
+        {
+            double MSE = 0.0;
+            for (i = 0; i < LEN_MAT(T); ++i)
+                MSE = MSE + (T_prev->data[i] - T->data[i]) * (T_prev->data[i] - T->data[i]);
+            //if (MSE <= QUASI_EQUILIBRIUM_SENSITIVITY) MODEL_SETTINGS.NT = 0;
+            //printf("MSE %.1e\r\n", MSE);
+            if (MSE < MSE_prev) printf("\n%.4e\n", MSE);
+            MSE_prev = MSE;
+            
+        }
+        */
         
-        // Progress bar
+        // Progress bar only shown if run length is already known
         float nprog = (float)(n + 1) / (float)(MODEL_SETTINGS.NT);
-        if (nprog > pdone)
+        if ((nprog > pdone) && (MODEL_SETTINGS.NT != INT64_MAX))
         {
             pbar[0] = '\r'; 
             pbar[1] = '|'; 
@@ -334,7 +390,10 @@ int main(int argc, char **argv)
             fflush(stdout);
 
             pdone = nprog;
-        }
+        }     
+
+        // Save old matrix
+        memcpy(T_prev->data, T->data, LEN_MAT(T) * sizeof(double));   
     }
     printf("\n\r");
 
@@ -362,7 +421,7 @@ int main(int argc, char **argv)
     free_mat(strmfnc); free_mat(rhow); free_mat(rhou); free_mat(rho);
     free_mat(p0);
     free_mat(rhovT_d);
-    free_mat(T); free_mat(Th); free_mat(Th_conv);
+    free_mat(T); free_mat(Th); free_mat(Th_conv); free_mat(T_prev);
     free_mat(q); free_mat(l);
     free_mat(Smax); 
     free_mat(ccoll); free_mat(cck);

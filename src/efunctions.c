@@ -697,6 +697,7 @@ mat* SHF_T_flux(mat* T, const mat* rho, const double Hs, const double dt)
         {
             res = -SHF / CPA / rho->data[j * COLS(rho) + i] / Hs * dt;
             T->data[j * COLS(T) + i] += res;
+            T->data[j * COLS(T) + i] = MAX(0.0, T->data[j * COLS(T) + i]);
         }
 
     return T;
@@ -704,15 +705,15 @@ mat* SHF_T_flux(mat* T, const mat* rho, const double Hs, const double dt)
 
 mat* LHF_q_flux(mat* q, const mat* rho, const double Hs, const double dt)
 {
-    double SHF = -MODEL_SETTINGS.LHF;
     double res;
     unsigned long i, j;
 
     for (j = 0; j < ROWS(q); ++j)
         for (i = 0; i < COLS(q); ++i)
         {
-            res = -SHF / LV / rho->data[j * COLS(rho) + i] / Hs * dt;
+            res = -MODEL_SETTINGS.LHF / LV / rho->data[j * COLS(rho) + i] / Hs * dt;
             q->data[j * COLS(q) + i] += res;
+            q->data[j * COLS(q) + i] = MAX(0.0, q->data[j * COLS(q) + i]);
         }
 
     return q;

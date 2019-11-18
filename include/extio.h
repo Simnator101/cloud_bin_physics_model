@@ -13,6 +13,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
 
@@ -23,6 +24,11 @@
 #include "./pgrid.h"
 
 #define OPTIONS_PRINT_UNKNOWN
+#define QUASI_EQUILIBRIUM_SENSITIVITY 0.1
+
+#define STRM_SHALLOW_CUMULUS 1
+#define STRM_SYM_EDDY 2
+#define STRM_ASYM_EDDY 4
 
 #define LINEXP_RGRID 0
 #define LINMASS_RGRID 1
@@ -61,7 +67,7 @@ strbuffer str_split(const char* str, const char delim);
 typedef struct __type_model_settings
 {
     // Time Scales
-    unsigned long NT;
+    long long NT;
     double dt;
     unsigned int fNT;
 
@@ -69,6 +75,7 @@ typedef struct __type_model_settings
     double zMin, zMax;
     double xMin, xMax;
     double dz, dx;
+    unsigned long zx_border_type;
 
     // Bin Settings
     unsigned long nbins;
@@ -79,9 +86,10 @@ typedef struct __type_model_settings
     double p0, z0;
 
     // Surface Fluxes
-    int use_fluxes; double LHF;
+    double LHF;
 
     // Stream Function Settings
+    int strm_type;
     double strm_density, Zclb, Ztop, Xwidth;
 
     // CCN Settings
