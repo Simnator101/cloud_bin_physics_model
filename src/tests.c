@@ -1,4 +1,5 @@
 #include "../include/tests.h"
+#include "../include/extio.h"
 
 int test_vector_funcs()
 {
@@ -300,4 +301,55 @@ void test_droplet_coal()
     free_vec(dr);
     free_mat(edg);
     free_vec(b);
+}
+
+void test_eddy_mixing()
+{
+    unsigned long i, j;
+    mat* C = allocate_matNxN(100);
+    vec* z = range(0.0, 1000.0, 10.0);
+    vec* x = range(0.0, 1000.0, 10.0);
+    FILE *pf = fopen("./tests/test_eddy_mixing.txt", "w");
+
+    for (i = 0; i < 100; ++i)
+    {
+        double val = 200.0 - 1.0 * (double)i;
+        for (j = 0; j < 100; ++j)
+            set_mat_ind(C, i, j, val);
+    }
+
+    mat* strm = allocate_matNxN(100);
+    MODEL_SETTINGS.strm_density = 80.0;
+    strmf_stratocumulus_sym(x, z, 1.0, strm);
+    mat* w = gradient_mat(strm, x, 1);
+    mat* u = gradient_mat(strm, z, 0); scl_mat(u, -1.0);
+    MODEL_SETTINGS.strm_density = 270.0;
+    free_mat(strm);
+
+
+    unsigned long N;
+    arakawa_2d* grid = make_arakawa_2d(C, x, z, u, w, NULL, 5.0);
+    for (N = 0; N < 17280; ++N)
+    {
+        mpadvec2d(grid, 4, MPDATA_NONOSCIL | MPDATA_CYCLIC_X | MPDATA_NILL_Y);
+       // for (i = 0; i < 100; ++i) 
+        //{
+        //    grid->data[0][i] = 200.0; grid->data[99][i] = 100.0;
+        //}
+    }
+    memcpy_arakawa_2d(C, grid);
+    free_arakawa_2d(grid, 0);
+
+    for (i = 0; i < 100; ++i)
+    {
+        for (j = 0; j < 100; ++j)
+            fprintf(pf, "%.3e ", C->data[i * 100 + j]);
+        fprintf(pf, "\r\n");
+    }
+
+    fclose(pf);
+    free_mat(u); free_mat(w);
+    free_vec(x); free_vec(z);
+    free_mat(C);
+
 }

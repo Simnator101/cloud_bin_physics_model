@@ -17,7 +17,8 @@ int main(int argc, char **argv)
     //test_advection_2d();
     //test_droplet_advc();
     //test_droplet_coal();
-    //return 0;
+    test_eddy_mixing();
+    return 0;
 
     // Indices
     unsigned long i, j, k, n, nf;

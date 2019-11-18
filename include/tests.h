@@ -26,6 +26,7 @@ void test_advection();
 void test_advection_2d();
 void test_droplet_advc();
 void test_droplet_coal();
+void test_eddy_mixing();
 
 _CCODE_END
 #endif
