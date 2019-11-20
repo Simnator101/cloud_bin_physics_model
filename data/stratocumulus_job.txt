@@ -1,15 +1,15 @@
 # Timesettings
 # Negative number of timesteps indicate run model till quasi-equilibrium was reached
-[TIMESTEPS,86400]
-[DT,0.5]
+[TIMESTEPS,43200]
+[DT,1.0]
 [FT,10]
 
 # Domain Settings
-[XDIM,0.0,1e3,50.0,PERIODIC]
-[ZDIM,0.0,1e3,50.0,CONTINUOUS]
+[XDIM,0.0,2e3,20.0,PERIODIC]
+[ZDIM,0.0,1e3,20.0,NILL]
 
 # Bin Settings
-[BINOPTS,69,linexp,0.25,0.055]
+[BINOPTS,54,linexp,0.25,0.055]
 
 # CCN Settings
 [CCN,1.2e8,0.4]
@@ -19,12 +19,12 @@
 
 # Kinematic Profile
 # General Structure [FLWFUNC, $type, $opt_density, $opt_Zclb, $opt_Ztop, $opt_width]
-[FLWFUNC,SYMMETRIC_EDDY,270.0,200.0,1e3,1e3]
+[FLWFUNC,SYMMETRIC_EDDY,540.0,200.0,1e3,2e3]
 
 # LHF -> SHF negative values indicate conversion of T to q
 [LHFSHF,-3.0]
 
 # Output Settings
-[NCOUT,./out/stratocumulus.nc,100]
+[NCOUT,./out/stratocumulus_clean_12h_3SHF.nc,60]
 [NCFLAGS,NONE]
 #[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]

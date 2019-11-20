@@ -292,10 +292,10 @@ double interp(double x, vec* x0, vec* y0, interp_type mode)
     if (x >= x0->data[x0->N-1]) return y0->data[y0->N-1];
     if (x <= x0->data[0]) return y0->data[0];
 
-    unsigned li = 0, ri = x0->N - 1;
+    int li = -1, ri = x0->N;
     double f = 0.0;
-    while (x0->data[li + 1] < x) ++li;
-    while (ri > 0 && x0->data[ri - 1] > x) --ri;
+    while ((int)x0->data[li + 1] <= x) ++li;
+    while (ri > 0 && (int)x0->data[ri - 1] >= x) --ri;
     f = (x0->data[ri] - x) / (x - x0->data[li] + 1e-40);
     f = 1. / (f + 1.);
 
@@ -330,9 +330,9 @@ vec* interp_vec(vec* x, vec* x0, vec* y0, interp_type mode)
         else
         {
             ri = x0->N-1; li = 0;
-            while (x0->data[li + 1] < x->data[i])
+            while (x0->data[li + 1] <= x->data[i])
                 ++li;
-            while (ri > 0 && x0->data[ri - 1] > x->data[i])
+            while (ri > 0 && x0->data[ri - 1] >= x->data[i])
                 --ri;
 
             f = (x0->data[ri] - x->data[i]) / (x->data[i] - x0->data[li] + 1e-40);

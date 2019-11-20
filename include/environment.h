@@ -79,7 +79,7 @@ mat* edges(const vec* r);
 vec* dr_bins(const vec* r);
 
 /*Subscale Turbulence*/
-vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt);
+vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt, int cyclic_field);
 
 /*Surface Parametrisation Fluxes*/
 mat* SHF_T_flux(mat* T, const mat* rho, const double Hs, const double dt);

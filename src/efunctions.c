@@ -635,7 +635,7 @@ vec* dr_bins(const vec* r)
 }
 
 /*Subscale Turbulence*/
-vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt)
+vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt, int cyclic_field)
 {
     assert(LEN(v) == LEN(rho));
     assert(LEN(v) == LEN(x));
@@ -659,13 +659,25 @@ vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt)
     if (constant)
     {
         K = Kscaler * dx;
-        turb->data[0] = K * (v->data[2] + v->data[0] - 2.0 * v->data[1]) / dx / dx * dt;
-        for (i = 1; i < N - 1; ++i)
-            turb->data[i] = K * (v->data[i+1] + v->data[i-1] - 2.0 * v->data[i]) / dx / dx * dt;
-        turb->data[i] = K * (v->data[i] + v->data[i-2] - 2.0 * v->data[i-1]) / dx / dx * dt;
+        if (cyclic_field)
+        {
+            turb->data[0] = K * (v->data[v->N-1] + v->data[1] - 2.0 * v->data[0]) / dx / dx * dt;
+            for (i = 1; i < N - 1; ++i)
+                turb->data[i] = K * (v->data[i+1] + v->data[i-1] - 2.0 * v->data[i]) / dx / dx * dt;
+            turb->data[i] = K * (v->data[i-1] + v->data[0] - 2.0 * v->data[i]) / dx / dx * dt;
+        }
+        else
+        {
+            turb->data[0] = K * (v->data[2] + v->data[0] - 2.0 * v->data[1]) / dx / dx * dt;
+            for (i = 1; i < N - 1; ++i)
+                turb->data[i] = K * (v->data[i+1] + v->data[i-1] - 2.0 * v->data[i]) / dx / dx * dt;
+            turb->data[i] = K * (v->data[i] + v->data[i-2] - 2.0 * v->data[i-1]) / dx / dx * dt;
+        }     
     }
     else
     {
+
+        // We need to checl this further
         vec* vgrad = gradient_vec(v, x);
         mlt_vec(vgrad, 1, rho);
         for (i = 1; i < N; ++i)

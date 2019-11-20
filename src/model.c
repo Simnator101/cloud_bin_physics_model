@@ -31,6 +31,8 @@ int main(int argc, char **argv)
     double dCCN; 
     double S;
     double Crate;
+    // Flags
+    int cyclic_diff_calc = 0;
     // Data Fields
     vec* x, *z, *r, *dr;
     mat* p0;
@@ -59,6 +61,8 @@ int main(int argc, char **argv)
     assert(read_job_settings(argv[1]) == 0);
     fprint_opts(stdout, MODEL_SETTINGS);
 
+    // If Cyclic in x set he horizontal diff calc flag
+    cyclic_diff_calc = (MODEL_SETTINGS.zx_border_type & MPDATA_CYCLIC_X);
 
     // Initialise Spatial Scales
     x = range(MODEL_SETTINGS.xMin,
@@ -130,6 +134,9 @@ int main(int argc, char **argv)
     rho = ideal_gass_density(T, z, MODEL_SETTINGS.p0);
     p0 = ideal_gass_pressure(T, z, MODEL_SETTINGS.p0);
     Th_conv = potential_T_converter(rho, T);
+
+    // TEST set rho to one
+    // for (i = 0; i < LEN_MAT(rho); ++i) rho->data[i] = 1.0;
 
     // Initialise Droplet V therminal momentum
     rhovT_d = allocate_matNxM(NZ, LEN(r));
@@ -232,17 +239,17 @@ int main(int argc, char **argv)
         {
             vec* Th_slc = slice_mat_row(Th, i);
             vec* rho_slc = slice_mat_row(rho, i);
-            horizontal_diffusion(Th_slc, rho_slc, x, MODEL_SETTINGS.dt);
+            horizontal_diffusion(Th_slc, rho_slc, x, MODEL_SETTINGS.dt, cyclic_diff_calc);
             set_mat_row(Th, Th_slc, i);
 
             vec* q_slc = slice_mat_row(q, i);
-            horizontal_diffusion(q_slc, rho_slc, x, MODEL_SETTINGS.dt);
+            horizontal_diffusion(q_slc, rho_slc, x, MODEL_SETTINGS.dt, cyclic_diff_calc);
             set_mat_row(q, q_slc, i);
 
             for (k = 0; k < LEN(r); ++k)
             {
                 vec* slc_l = slice_pgrid_zx(bins, i, k);
-                horizontal_diffusion(slc_l, rho_slc, x, MODEL_SETTINGS.dt);
+                horizontal_diffusion(slc_l, rho_slc, x, MODEL_SETTINGS.dt, cyclic_diff_calc);
                 set_pgrid_zx(bins, slc_l, i, k);
                 free_vec(slc_l);
             }
@@ -251,12 +258,12 @@ int main(int argc, char **argv)
         }
 
         // Fix Edges
-        set_mat_row(Th, Th0_bot, 0); set_mat_row(q, q0_bot, 0);
-        set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_top, NZ - 1);
+        //set_mat_row(Th, Th0_bot, 0); set_mat_row(q, q0_bot, 0);
+        //set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_top, NZ - 1);
         //set_mat_col(Th, Th0, NX-1); set_mat_col(q, q0, NX-1);
         //for (j = 0; j < NX; ++j) for (k = 0; k < LEN(r); ++k)
         //    bins->data[j * bins->NX + k] = 0.0;
-        if (MODEL_SETTINGS.zx_border_type & MPDATA_CYCLIC_X)
+        /*if (MODEL_SETTINGS.zx_border_type & MPDATA_CYCLIC_X)
         {
             vec* Tl = slice_mat_col(Th, 0);
             vec* ql = slice_mat_col(q, 0);
@@ -282,7 +289,7 @@ int main(int argc, char **argv)
             free(Tl); free(Tr);
             free(ql); free(qr);
             free_mat(bl); free_mat(br);
-        }
+        }*/
 
         // Solve Temperature Equation from pot. T.
         memcpy(T->data, Th->data, sizeof(double) * LEN_MAT(T));

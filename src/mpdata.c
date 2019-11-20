@@ -130,7 +130,7 @@ static int fill_halo_x(double* d, double* u, double* G, unsigned long NX, const 
         d[-2] = d[NX-2];    d[NX+1] = d[1];
         d[-1] = d[NX-1];    d[NX] = d[0];
 
-        u[-2] = u[NX-1];      u[NX+2] = u[1];
+        u[-2] = u[NX-1];    u[NX+2] = u[1];
         u[-1] = u[NX];      u[NX+1] = u[0];
 
         G[-2] = G[NX-2];    G[NX+1] = G[1];
@@ -214,6 +214,7 @@ static int fill_halo_y(double** d, double** v, double** G, unsigned long NY, uns
         }
         return 1;
     }
+    
     return 0;
 }
 
@@ -551,7 +552,7 @@ arakawa_2d* mpadvec2d(arakawa_2d* grid, const long order, const unsigned options
 
     // Fill Halo
     assert(fill_halo_y(psip, C[1], G, grid->N, grid->M, options));
-    for (i = 0; i < grid->N; ++i)
+    for (i = -grid->lh; i < grid->N + grid->lh; ++i)
         fill_halo_x(psip[i], C[0][i], G[i], grid->M, options);
 
     // Temp
@@ -689,7 +690,7 @@ arakawa_2d* mpadvec2d(arakawa_2d* grid, const long order, const unsigned options
         // Update Fields with Cm
         // Refill Halo 
         fill_halo_y(psin, Cm[1], G, grid->N, grid->M, options);
-        for (i = 0; i < grid->N; ++i)
+        for (i = -grid->lh; i < grid->N + grid->lh; ++i)
             fill_halo_x(psin[i], Cm[0][i], G[i], grid->M, options);
         // Update Fields
         for (i = -grid->lh; i < (int)(grid->N + grid->lh); ++i)
@@ -707,7 +708,7 @@ arakawa_2d* mpadvec2d(arakawa_2d* grid, const long order, const unsigned options
 
         // Update Fields
         fill_halo_y(psin, diffuv[1], G, grid->N, grid->M, options);
-        for (i = 0; i < grid->N; ++i)
+        for (i = -grid->lh; i < grid->N + grid->lh; ++i)
             fill_halo_x(psin[i], diffuv[0][i], G[i], grid->M, options);
         for (i = -grid->lh; i < (int)(grid->N + grid->lh); ++i)
         {
