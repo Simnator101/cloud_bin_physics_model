@@ -301,6 +301,7 @@ int main(int argc, char **argv)
                 Ncn = activated_CCN(q->data[ind], T->data[ind], p0->data[ind]);
                 double dCCN = MAX(Ncn - Nc->data[ind], 0.0) / MODEL_SETTINGS.dt;
                 bin->data[0] += dCCN / dr->data[0];
+                if (Ncn > Nc->data[ind]) Nc->data[ind] = Ncn;
 
                 // Coalescene/Collision
                 bin = collision(bin, r, ima, ccoll, cck);    

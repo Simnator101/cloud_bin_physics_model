@@ -25,5 +25,5 @@
 [LHFSHF,0.0]
 
 # Output Settings
-[NCOUT,./out/shallow_cumulus.nc,10]
+[NCOUT,./out/shallow_cumulus_clean_1h.nc,10]
 [NCFLAGS,NONE]
