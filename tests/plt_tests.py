@@ -57,6 +57,7 @@ ax.set_xlabel("$\\mu$m (r)")
 ax.set_ylabel("g(g/kg)")
 ax.xaxis.set_major_formatter(ScalarFormatter())
 
+# Collision
 ima = np.genfromtxt("./test_ima.txt")
 col_c = np.genfromtxt("./test_colC.txt")
 
@@ -70,5 +71,14 @@ ax.set_xlabel("r ($\\mu$m)")
 ax.set_ylabel("r ($\\mu$m)")
 ax.xaxis.set_major_formatter(ScalarFormatter())
 ax.yaxis.set_major_formatter(ScalarFormatter())
+f.colorbar(cb)
+plt.show()
+
+# Mixing
+mix = np.genfromtxt("./test_eddy_mixing.txt")
+XV, YV = np.meshgrid(range(mix.shape[0]), range(mix.shape[1]))
+f, ax = plt.subplots()
+cb = ax.contourf(XV, YV, mix)
+ax.set_title("Test Mixing Av. should be 150")
 f.colorbar(cb)
 plt.show()
