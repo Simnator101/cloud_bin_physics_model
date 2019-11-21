@@ -1,6 +1,6 @@
 # Timesettings
 # Negative number of timesteps indicate run model till quasi-equilibrium was reached
-[TIMESTEPS,43200]
+[TIMESTEPS,360]
 [DT,1.0]
 [FT,10]
 
@@ -12,7 +12,7 @@
 [BINOPTS,54,linexp,0.25,0.055]
 
 # CCN Settings
-[CCN,1.2e8,0.4]
+[CCN,1e8,0.5]
 
 # Background Profile
 [PROFILE,./data/stratocumulus_profile.txt,Z,TH,Q]
@@ -25,6 +25,6 @@
 [LHFSHF,-3.0]
 
 # Output Settings
-[NCOUT,./out/stratocumulus_clean_12h_3SHF.nc,60]
-[NCFLAGS,NONE]
-#[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]
+[NCOUT,./out/default_out.nc,1]
+#[NCFLAGS,NONE]
+[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]

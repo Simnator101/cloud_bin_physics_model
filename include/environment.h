@@ -71,6 +71,7 @@ vec* droplet_growth_rate(vec* r);
 void courant_coal(vec* r, mat* c, int* ima);
 mat* collision_kernel(vec* r, const int type, const double dt);
 vec* collision(vec* bin, vec* r, int* ima, mat* c, mat* ck);
+double activated_CCN(const double q, const double T, const double p);
 
 /*Bin Definition and Conversion Formulas*/
 vec* linexp_grid(const unsigned long N, const double linT, const double expT);

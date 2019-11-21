@@ -565,6 +565,26 @@ vec* collision(vec* bin, vec* r, int* ima, mat* c, mat* ck)
     return bin;
 }
 
+/*
+    Taken from Khvorostyanov and Curry (1999) for fully soluble Ammonium Sulfate
+    Equation was taken from ee 10. in Morrison 2007
+*/
+double activated_CCN(const double q, const double T, const double p)
+{
+    const double mean_r = 0.05e-6;
+    const double geom_std = 2.0;
+    const double beta = 0.5;
+
+    // Super Saturation and other parameters
+    double S = q / sat_mixr_vapour(p, T) - 1.0;
+    double S0 = pow(mean_r, -(1. + beta));
+    S0 *= sqrt(4. * KELVIN_C * KELVIN_C * KELVIN_C / 27. / MODEL_SETTINGS.CCN_k);
+    double sigs = pow(geom_std, 1. + beta);
+
+    double u = log(S0/S) / (sqrt(2)*log(sigs));
+    return 0.5 * MODEL_SETTINGS.CCN_C0 * erfc(u);
+}
+
 /*Bin Definition and Conversion Formulas*/
 vec* linexp_grid(const unsigned long N, const double linT, const double expT)
 {
@@ -666,12 +686,12 @@ vec* horizontal_diffusion(vec* v, vec* rho, vec* x, const double dt, int cyclic_
                 turb->data[i] = K * (v->data[i+1] + v->data[i-1] - 2.0 * v->data[i]) / dx / dx * dt;
             turb->data[i] = K * (v->data[i-1] + v->data[0] - 2.0 * v->data[i]) / dx / dx * dt;
         }
-        else
+        else    // We assume that Horizontal boundaries are continuous
         {
-            turb->data[0] = K * (v->data[2] + v->data[0] - 2.0 * v->data[1]) / dx / dx * dt;
+            turb->data[0] = K * (v->data[0] + v->data[1] - 2.0 * v->data[0]) / dx / dx * dt;
             for (i = 1; i < N - 1; ++i)
                 turb->data[i] = K * (v->data[i+1] + v->data[i-1] - 2.0 * v->data[i]) / dx / dx * dt;
-            turb->data[i] = K * (v->data[i] + v->data[i-2] - 2.0 * v->data[i-1]) / dx / dx * dt;
+            turb->data[i] = K * (v->data[i-1] + v->data[i] - 2.0 * v->data[i]) / dx / dx * dt;
         }     
     }
     else
@@ -704,7 +724,7 @@ mat* SHF_T_flux(mat* T, const mat* rho, const double Hs, const double dt)
     double res;
     unsigned long i, j;
 
-    for (j = 0; j < ROWS(T); ++j)
+    for (j = 1; j < ROWS(T)-1; ++j)
         for (i = 0; i < COLS(T); ++i)
         {
             res = -SHF / CPA / rho->data[j * COLS(rho) + i] / Hs * dt;
@@ -720,7 +740,7 @@ mat* LHF_q_flux(mat* q, const mat* rho, const double Hs, const double dt)
     double res;
     unsigned long i, j;
 
-    for (j = 0; j < ROWS(q); ++j)
+    for (j = 1; j < ROWS(q)-1; ++j)
         for (i = 0; i < COLS(q); ++i)
         {
             res = -MODEL_SETTINGS.LHF / LV / rho->data[j * COLS(rho) + i] / Hs * dt;

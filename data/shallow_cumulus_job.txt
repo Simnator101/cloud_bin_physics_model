@@ -12,7 +12,7 @@
 [BINOPTS,69,linexp,0.25,0.055]
 
 # CCN Settings
-[CCN,1.2e8,0.4]
+[CCN,1e8,0.5]
 
 # Background Profile
 [PROFILE,./data/shallow_cumulus_profile.txt,P,T,Q]
@@ -25,5 +25,5 @@
 [LHFSHF,0.0]
 
 # Output Settings
-[NCOUT,./out/shallow_cumulus.nc,8]
-#[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]
+[NCOUT,./out/shallow_cumulus.nc,10]
+[NCFLAGS,NONE]

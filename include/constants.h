@@ -11,6 +11,7 @@
 #define RHOW 997.0      // kg / m^3
 #define TRBE 4.0        // m^2 / s^2 Turbulent Kinetic Energy
 #define KIN_AIR 1.5e-5  // m^2 / s
+#define KELVIN_C 1.2e-9 // m
 
 #ifndef PI
 #define PI   3.141592653589793

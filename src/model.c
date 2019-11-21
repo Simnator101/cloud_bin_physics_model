@@ -28,7 +28,7 @@ int main(int argc, char **argv)
     unsigned long NZ, NX, NR;
     double t, fdt;
     //
-    double dCCN; 
+    double Ncn; 
     double S;
     double Crate;
     // Flags
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     mat* T, *Th, *Th_conv, *T_prev;
     mat* q, *l;
     mat* strmfnc, *rhow, *rhou, *rho, *rhovT_d;
-    mat* Smax;
+    mat* Nc;
     pgrid* bins;
     mat* ccoll, *cck;
     vec* drdt;
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     q    = allocate_matNxM(NZ, NX);
     l    = zero_mat(NZ, NX);
     bins = zero_pgrid(NZ, NX, NR); 
-    Smax = zero_mat(NZ, NX);
+    Nc = zero_mat(NZ, NX);
 
     // Load data from sounding to load in initial T
     sounding snd = {NULL, NULL, NULL, NULL};
@@ -180,6 +180,22 @@ int main(int argc, char **argv)
         free_mat(rhow); free_mat(rhou);
         rhow = gradient_mat(strmfnc, x, 1);
         rhou = gradient_mat(strmfnc, z, 0); scl_mat(rhou, -1.0);
+
+        // Model Assumptions
+        // No vertical Fluxes Through the upper and lower boundary
+        memset(rhow->data + (NZ - 1)*NX, 0, sizeof(double)*NX);
+        memset(rhow->data, 0, sizeof(double)*NX);
+        // Also a no-slip condition on both vertical boundaries
+        //memset(rhou->data + (NZ - 1)*NX, 0, sizeof(double) * NX);
+        //memset(rhou->data, 0, sizeof(double) * NX);
+
+
+        // With Eddies there is a large possibility of NaN development in the botom and top layer
+        // To fix this, we clear these regions of ANY liquid
+        //memset(q->data, 0, sizeof(double) * NX);
+        //memset(q->data + (NZ - 1) * NX, 0, sizeof(double) * NX);
+        //memset(bins->data, 0, NR * NX * sizeof(double));
+        //memset(bins->data + (NZ-1) * NR * NX, 0, NR * NX * sizeof(double));
         
         // Write To netCDF    
         if ((n % MODEL_SETTINGS.nc_write_freq) == 0)
@@ -258,38 +274,12 @@ int main(int argc, char **argv)
         }
 
         // Fix Edges
+        //set_mat_row(q, q0_bot, 0); set_mat_row(q, q0_bot, 0);
         //set_mat_row(Th, Th0_bot, 0); set_mat_row(q, q0_bot, 0);
-        //set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_top, NZ - 1);
+        //set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_bot, 0);;
         //set_mat_col(Th, Th0, NX-1); set_mat_col(q, q0, NX-1);
         //for (j = 0; j < NX; ++j) for (k = 0; k < LEN(r); ++k)
         //    bins->data[j * bins->NX + k] = 0.0;
-        /*if (MODEL_SETTINGS.zx_border_type & MPDATA_CYCLIC_X)
-        {
-            vec* Tl = slice_mat_col(Th, 0);
-            vec* ql = slice_mat_col(q, 0);
-
-            vec* Tr = slice_mat_col(Th, NX -1);
-            vec* qr = slice_mat_col(q, NX -1);
-
-            mat* bl = slice_pgrid_y(bins, 0);
-            mat* br = slice_pgrid_y(bins, NX - 1);
-            add_mat(bl, 1, br);
-            scl_mat(bl, 0.5);
-
-            for (i = 0; i < NZ; ++i)
-            {
-                Tl->data[i] = (Tl->data[i] + Tr->data[i]) * 0.5;
-                ql->data[i] = (ql->data[i] + qr->data[i]) * 0.5;
-            }
-
-            set_mat_col(Th, Tl, 0); set_mat_col(Th, Tl, NX - 1);
-            set_mat_col(q, ql, 0); set_mat_col(q, ql, NX - 1);
-            set_pgrid_y(bins, bl, 0); set_pgrid_y(bins, bl, NX - 1);
-
-            free(Tl); free(Tr);
-            free(ql); free(qr);
-            free_mat(bl); free_mat(br);
-        }*/
 
         // Solve Temperature Equation from pot. T.
         memcpy(T->data, Th->data, sizeof(double) * LEN_MAT(T));
@@ -301,7 +291,6 @@ int main(int argc, char **argv)
         // Next we solve the remaining right-hand equations, which are source terms
         // We then use smaller fractional time steps to do condensational advection
         //
-        double SSmax = 0.0, SSmin = 0.0;
         for (i = 0; i < NZ; ++i)
         {
             for (j = 0; j < NX; ++j)
@@ -309,18 +298,8 @@ int main(int argc, char **argv)
                 ind = i * NX + j;
                 vec* bin = slice_pgrid_zy(bins, i, j);
                 // Activation
-                S = (q->data[ind] / sat_mixr_vapour(p0->data[ind], T->data[ind])) - 1.0;
-                //if (S > 0.0 ) printf("S: %f\n", S);
-                dCCN = 0.0;
-                if (S > Smax->data[ind])
-                {
-                    dCCN =  MODEL_SETTINGS.CCN_C0 * pow(100.0 * S, MODEL_SETTINGS.CCN_k);
-                    dCCN -= MODEL_SETTINGS.CCN_C0 * pow(100.0 * Smax->data[ind], MODEL_SETTINGS.CCN_k);
-                    Smax->data[ind] = S;
-
-                    SSmax = MAX(S, SSmax);
-                    SSmin = MIN(S, SSmin);
-                }
+                Ncn = activated_CCN(q->data[ind], T->data[ind], p0->data[ind]);
+                double dCCN = MAX(Ncn - Nc->data[ind], 0.0) / MODEL_SETTINGS.dt;
                 bin->data[0] += dCCN / dr->data[0];
 
                 // Coalescene/Collision
@@ -430,7 +409,7 @@ int main(int argc, char **argv)
     free_mat(rhovT_d);
     free_mat(T); free_mat(Th); free_mat(Th_conv); free_mat(T_prev);
     free_mat(q); free_mat(l);
-    free_mat(Smax); 
+    free_mat(Nc); 
     free_mat(ccoll); free_mat(cck);
 
     // Free Pgrids

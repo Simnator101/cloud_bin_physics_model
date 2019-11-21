@@ -1,6 +1,6 @@
 # Timesettings
 # Negative number of timesteps indicate run model till quasi-equilibrium was reached
-[TIMESTEPS,7200]
+[TIMESTEPS,360]
 [DT,0.5]
 [FT,10]
 
@@ -12,7 +12,9 @@
 [BINOPTS,69,linexp,0.25,0.055]
 
 # CCN Settings
-[CCN,1.2e8,0.4]
+# First Param is the number concentration of an CCN aersol species
+# Second param is b parameter taken from soluble Ammonium Sulfate (Khvorostynanov and Curry 2006)
+[CCN,1e8,0.5]
 
 # Background Profile
 [PROFILE,./data/shallow_cumulus_profile.txt,P,T,Q]
@@ -25,5 +27,5 @@
 [LHFSHF,0.0]
 
 # Output Settings
-[NCOUT,./out/shallow_cumulus.nc,8]
+[NCOUT,./out/default_out.nc,2]
 #[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]
