@@ -1,6 +1,6 @@
 # Timesettings
 # Negative number of timesteps indicate run model till quasi-equilibrium was reached
-[TIMESTEPS,3600]
+[TIMESTEPS,21600]
 [DT,1.0]
 [FT,10]
 
@@ -21,9 +21,10 @@
 # General Structure [FLWFUNC, $type, $opt_density, $opt_Zclb, $opt_Ztop, $opt_width]
 [FLWFUNC,SYMMETRIC_EDDY,540.0,200.0,1e3,2e3]
 
-[RELAX,300.0,200.0]
+#[RELAX,300.0,200.0]
+[LHFSHF,-3.0]
 
 # Output Settings
-[NCOUT,./out/default_out.nc,10]
+[NCOUT,./out/stratocumulus_clean_6h_3SHF.nc,60]
 [NCFLAGS,L_FIELD]
 #[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]
