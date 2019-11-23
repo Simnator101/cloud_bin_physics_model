@@ -329,9 +329,9 @@ void test_eddy_mixing()
 
     unsigned long N;
     arakawa_2d* grid = make_arakawa_2d(C, x, z, u, w, NULL, 5.0);
-    for (N = 0; N < 17280; ++N)
+    for (N = 0; N < 3600; ++N)
     {
-        mpadvec2d(grid, 4, MPDATA_NONOSCIL | MPDATA_CYCLIC_X | MPDATA_NILL_Y);
+        mpadvec2d(grid, 4, MPDATA_NONOSCIL | MPDATA_CYCLIC_X | MPDATA_NILL_Y | MPDATA_NFLUX_Y);
        // for (i = 0; i < 100; ++i) 
         //{
         //    grid->data[0][i] = 200.0; grid->data[99][i] = 100.0;

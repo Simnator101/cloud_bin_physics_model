@@ -26,6 +26,11 @@
 # LHF -> SHF negative values indicate conversion of T to q
 [LHFSHF,0.0]
 
+# Relaxation Time, used to describe forcing of q and T by bottom layer of the simulation4
+# Variables are t0 and zr which determine the relaxation time of all layers to the bottom layer
+# in the following manner : t=t0*exp(z/zr)
+[RELAX,0.0,0.0]
+
 # Output Settings
 [NCOUT,./out/default_out.nc,2]
 #[NCFLAGS,L_FIELD,RHOW_FIELD,RHOU_FIELD]

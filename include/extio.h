@@ -87,6 +87,7 @@ typedef struct __type_model_settings
 
     // Surface Fluxes
     double LHF;
+    double tau_r, z_r;
 
     // Stream Function Settings
     int strm_type;

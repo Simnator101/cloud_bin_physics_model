@@ -181,11 +181,6 @@ int main(int argc, char **argv)
         rhow = gradient_mat(strmfnc, x, 1);
         rhou = gradient_mat(strmfnc, z, 0); scl_mat(rhou, -1.0);
 
-        // Model Assumptions
-        // No vertical Fluxes Through the upper and lower boundary
-        memset(rhow->data + (NZ - 1)*NX, 0, sizeof(double)*NX);
-        memset(rhow->data, 0, sizeof(double)*NX);
-        // Also a no-slip condition on both vertical boundaries
         //memset(rhou->data + (NZ - 1)*NX, 0, sizeof(double) * NX);
         //memset(rhou->data, 0, sizeof(double) * NX);
 
@@ -219,6 +214,23 @@ int main(int argc, char **argv)
             for(i = 0; i < LEN_MAT(T); ++i) Th->data[i] = Th_conv->data[i] * T->data[i];
             LHF_q_flux(q, rho, max_vec(z), MODEL_SETTINGS.dt);
         }
+
+        // Relaxation Effects
+        if (MODEL_SETTINGS.tau_r != 0.0 && MODEL_SETTINGS.z_r != 0.0)
+        {
+            for (i = 0; i < NZ; ++i)
+            {
+                double tau = MODEL_SETTINGS.tau_r * exp(z->data[i] / MODEL_SETTINGS.z_r);
+                double reff = exp(-MODEL_SETTINGS.dt / tau);
+                for (j = 0; j < NX; ++j)
+                {
+                    Th->data[i*NX+j] = Th->data[i*NX+j] * reff + Th0_bot->data[j] * (1. - reff);
+                    T->data[i*NX+j] = Th->data[i*NX+j] / Th_conv->data[i*NX+j];
+                    q->data[i*NX+j] = q->data[i*NX+j] * reff + q0_bot->data[j] * (1. - reff);
+                }
+            }
+        }
+        
 
         // Advection of Temperature and Humidity
         arakawa_2d* Th_grid = make_arakawa_2d(Th, x, z, rhou, rhow, rho, MODEL_SETTINGS.dt);
@@ -274,7 +286,6 @@ int main(int argc, char **argv)
         }
 
         // Fix Edges
-        //set_mat_row(q, q0_bot, 0); set_mat_row(q, q0_bot, 0);
         //set_mat_row(Th, Th0_bot, 0); set_mat_row(q, q0_bot, 0);
         //set_mat_row(Th, Th0_top, NZ - 1); set_mat_row(q, q0_bot, 0);;
         //set_mat_col(Th, Th0, NX-1); set_mat_col(q, q0, NX-1);
@@ -290,8 +301,8 @@ int main(int argc, char **argv)
         // We already calculated advection + diffusion in z,x space
         // Next we solve the remaining right-hand equations, which are source terms
         // We then use smaller fractional time steps to do condensational advection
-        //
-        for (i = 0; i < NZ; ++i)
+        // Note that we don't do these calculations for the bottom and top layer
+        for (i = 1; i < NZ-1; ++i)
         {
             for (j = 0; j < NX; ++j)
             {

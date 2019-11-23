@@ -24,6 +24,8 @@ __model_settings MODEL_SETTINGS =
 
     // LH
     0.0,
+    // Relaxation time
+    0.0, 0.0,
 
     // Stream Function
     STRM_SHALLOW_CUMULUS,
@@ -136,6 +138,9 @@ int read_job_settings(const char *file_name)
                 MODEL_SETTINGS.zx_border_type |= 0x0002;
             else
                 MODEL_SETTINGS.zx_border_type |= 0x0004;
+            
+            if (STR_CMP(opt_ln[4], "NOFLUX"))
+                MODEL_SETTINGS.zx_border_type |= 0x0008;
         }
         else if (STR_CMP(opt_ln[0], "ZDIM") && strbuffer_len(opt_ln) == 5)
         {
@@ -148,6 +153,9 @@ int read_job_settings(const char *file_name)
                 MODEL_SETTINGS.zx_border_type |= 0x0020;
             else
                 MODEL_SETTINGS.zx_border_type |= 0x0040;
+
+             if (STR_CMP(opt_ln[4], "NOFLUX"))
+                MODEL_SETTINGS.zx_border_type |= 0x0080;
         }
         else if (STR_CMP(opt_ln[0], "BINOPTS") && strbuffer_len(opt_ln) == 5)
         {
@@ -230,6 +238,11 @@ int read_job_settings(const char *file_name)
         {
             MODEL_SETTINGS.LHF = strtod(opt_ln[1], NULL);
         }
+        else if (STR_CMP(opt_ln[0], "RELAX") && strbuffer_len(opt_ln) == 3)
+        {
+            MODEL_SETTINGS.tau_r = strtod(opt_ln[1], NULL);
+            MODEL_SETTINGS.z_r = strtod(opt_ln[2], NULL);
+        }
         else if (STR_CMP(opt_ln[0], "NCOUT") && strbuffer_len(opt_ln) >= 3)
         {
             char* tmpstr = str_trim(opt_ln[1], TRUE, TRUE);
@@ -304,6 +317,7 @@ void fprint_opts(FILE* pf, __model_settings sets)
     if (sets.strm_type != STRM_SHALLOW_CUMULUS)
         fprintf(pf, "\tDensity: %.1f\r\n\tZ_clb %.1f\r\n\tZ_top %.1f\r\n\tWidth: %.1f\r\n", sets.strm_density, sets.Zclb, sets.Ztop, sets.Xwidth);
     fprintf(pf, "LHF->SHF Flux %.1f W/m^2\r\n", sets.LHF);
+    fprintf(pf, "Relaxation Effects %.1f s %.1f m\r\n", sets.tau_r, sets.z_r);
     fprintf(pf, "NetCDF4 Info:\r\n");
     fprintf(pf, "\tOutput File: \"%s\"\r\n", sets.nc_output_nm);
     fprintf(pf, "\tWrite Frequency: %i\r\n", (int)sets.nc_write_freq);

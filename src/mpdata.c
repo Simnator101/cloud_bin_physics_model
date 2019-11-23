@@ -281,6 +281,13 @@ arakawa_1d* mpadvec1d(arakawa_1d* grid, const long order, const unsigned options
 
     memcpy(C - grid->lh, grid->u - grid->lh, (ARA1D_TOTS(grid) + 1) * sizeof(double));
 
+    // Check for the no flux option
+    if (options & MPDATA_NFLUX_X)
+    {
+        C[0] = 0.0;
+        C[grid->N] = 0.0;
+    }
+
     // FL fields
     double* psi_max = NULL;
     double* psi_min = NULL;
@@ -549,6 +556,21 @@ arakawa_2d* mpadvec2d(arakawa_2d* grid, const long order, const unsigned options
     double** psin = empty_psi2d(grid);
     double** C[2] = {copy_courant2d(grid, 1), copy_courant2d(grid, 0)};
     double** G = grid->G;
+
+    // Check If we have the no flux options
+    if (options & MPDATA_NFLUX_X)
+    {
+        for (i = 0; i < grid->N; ++i)
+        {
+            C[0][i][0] = 0.0;
+            C[0][i][grid->M] = 0.0;
+        }
+    }
+    if (options & MPDATA_NFLUX_Y)
+    {
+        memset(C[1][0], 0, grid->M * sizeof(double));
+        memset(C[1][grid->N], 0, grid->M * sizeof(double));
+    }
 
     // Fill Halo
     assert(fill_halo_y(psip, C[1], G, grid->N, grid->M, options));
